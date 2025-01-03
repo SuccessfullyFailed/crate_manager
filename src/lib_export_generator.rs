@@ -78,15 +78,21 @@ pub fn generate_exports_for_crate(crate_path:&str) -> Result<(), Box<dyn Error>>
 		let source_files:Vec<FileRef> = mod_dir.scanner().include_files().filter(|file| file.name() != LIB_FILE_NAME && file.name() != MOD_FILE_NAME).collect();
 		let sub_mod_dirs:Vec<FileRef> = mod_dir.scanner().include_dirs().filter(|dir| (dir.clone() + "/" + MOD_FILE_NAME).exists()).collect();
 
+		// Create a list of all sources found and another containing all sources that have public exports.
+		let all_sources:Vec<String> = [source_files.clone(), sub_mod_dirs.clone()].iter().flatten().map(|file| file.file_name_no_extension().to_owned()).collect();
+		let sources_with_exports:Vec<String> = [
+			source_files.iter().filter(|&file| file_contains_pub_exports(file)).collect::<Vec<&FileRef>>(),
+			sub_mod_dirs.iter().filter(|&dir| file_contains_pub_exports(&(dir.clone() + "/mod.rs"))).collect::<Vec<&FileRef>>()
+		].iter().flatten().map(|file| file.file_name_no_extension().to_owned()).collect();
+
 		// Generate and mod-file code.
-		let sources:Vec<String> = [source_files, sub_mod_dirs].iter().flatten().map(|file| file.file_name_no_extension().to_owned()).collect();
 		let prefix:&str = original_mod_file_code.split(AUTO_EXPORT_TAG).next().unwrap_or("");
 		let new_mod_file_contents:String = format!(
 			"{}{}\n{}\n{}",
 			prefix,
 			AUTO_EXPORT_TAG,
-			sources.iter().map(|source| format!("mod {source};")).collect::<Vec<String>>().join("\n"),
-			sources.iter().map(|source| format!("pub use {source}::*;")).collect::<Vec<String>>().join("\n")
+			all_sources.iter().map(|source| format!("mod {source};")).collect::<Vec<String>>().join("\n"),
+			sources_with_exports.iter().map(|source| format!("pub use {source}::*;")).collect::<Vec<String>>().join("\n")
 		);
 
 		// If generated code does not match current contents, overwrite.
@@ -97,4 +103,45 @@ pub fn generate_exports_for_crate(crate_path:&str) -> Result<(), Box<dyn Error>>
 
 	// Return success.
 	Ok(())
+}
+
+/// Check if a file contains public exports in the surface level.
+fn file_contains_pub_exports(file:&FileRef) -> bool {
+	use omni_parser::NestedCodeParser;
+	use regex::Regex;
+
+	// Keep a static version of the export finding regex.
+	static mut EXPORT_REGEX:Option<Regex> = None;
+	let export_regex:&Regex = unsafe {
+		match EXPORT_REGEX.as_mut() {
+			Some(regex) => regex,
+			None => {
+				EXPORT_REGEX = Some(Regex::new(r#"(^|\s)pub\s(struct|enum|fn|trait|impl|mod|const|static|type|use|crate|macro)\s"#).unwrap());
+				EXPORT_REGEX.as_ref().unwrap()
+			}
+		}
+	};
+
+	// Keep a static version of a rust code parser.
+	static mut RUST_CODE_PARSER:Option<NestedCodeParser> = None;
+	let rust_code_parser:&NestedCodeParser = unsafe {
+		match RUST_CODE_PARSER.as_mut() {
+			Some(parser) => parser,
+			None => {
+				RUST_CODE_PARSER = Some(NestedCodeParser::new(vec![
+					&("doc-comment", false, "///", "\n"),
+					&("single-line-comment", false, "//", "\n"),
+					&("multi-line-comment", false, "/*", "*/"),
+					&("quote", false, "\"", None, "\"", Some("\\")),
+					&("scope", true, "{", "}"),
+				]));
+				RUST_CODE_PARSER.as_mut().unwrap()
+			}
+		}
+	};
+
+	// Find any public exports in the non-nested code.
+	let file_contents:String = file.read().unwrap_or_default();
+	let surface_code:String = rust_code_parser.parse(&file_contents, true).iter().filter(|segment| segment.depth() == 0).map(|segment| segment.contents()).collect::<Vec<&str>>().join("\n");
+	export_regex.is_match(&surface_code)
 }
