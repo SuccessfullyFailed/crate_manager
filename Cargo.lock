@@ -17,7 +17,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "file_ref"
 version = "0.1.0"
-source = "git+https://github.com/SuccessfullyFailed/file_ref.git#97989fb08ff46fa625423562d30925d6b3552433"
+source = "git+https://github.com/SuccessfullyFailed/file_ref.git#08653f8acbda53aafe22be0d450cc5c0d1a9465a"
 dependencies = [
  "unit_test_support",
 ]
@@ -105,9 +105,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.93"
+version = "2.0.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c786062daee0d6db1132800e623df74274a0a87322d8e183338e01b3d98d058"
+checksum = "987bc0be1cdea8b10216bd06e2ca407d40b9543468fafd3ddfb02f36e77f71f3"
 dependencies = [
  "proc-macro2",
  "quote",

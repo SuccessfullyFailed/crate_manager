@@ -34,8 +34,8 @@ fn crates_in(root_directory_path:&str) -> Vec<FileRef> {
 		.scanner()
 		.include_self()
 		.include_dirs()
-		.with_recurse_filter(Box::new(|sub_dir| !DIR_RECURSE_EXCEPTIONS.contains(&sub_dir.name())))
-		.with_filter(Box::new(|crate_dir| (crate_dir.clone() + "/" + CRATE_ROOT_DETECTOR_FILE_NAME).exists() && (crate_dir.clone() + "/" + CRATE_SOURCE_DIR + "/" + LIB_FILE_NAME).exists()))
+		.recurse_filter(|sub_dir| !DIR_RECURSE_EXCEPTIONS.contains(&sub_dir.name()))
+		.filter(|crate_dir| (crate_dir.clone() + "/" + CRATE_ROOT_DETECTOR_FILE_NAME).exists() && (crate_dir.clone() + "/" + CRATE_SOURCE_DIR + "/" + LIB_FILE_NAME).exists())
 		.collect()
 }
 
