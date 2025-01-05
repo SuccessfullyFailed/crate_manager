@@ -81,8 +81,8 @@ pub fn generate_exports_for_crate(crate_path:&str) -> Result<(), Box<dyn Error>>
 		// Create a list of all sources found and another containing all sources that have public exports.
 		let all_sources:Vec<String> = [source_files.clone(), sub_mod_dirs.clone()].iter().flatten().map(|file| file.file_name_no_extension().to_owned()).collect();
 		let sources_with_exports:Vec<String> = [
-			source_files.iter().filter(|&file| file_contains_pub_exports(file)).collect::<Vec<&FileRef>>(),
-			sub_mod_dirs.iter().filter(|&dir| file_contains_pub_exports(&(dir.clone() + "/mod.rs"))).collect::<Vec<&FileRef>>()
+			source_files.iter().filter(|&file| file_contains_pub_exports(file).unwrap_or(false)).collect::<Vec<&FileRef>>(),
+			sub_mod_dirs.iter().filter(|&dir| file_contains_pub_exports(&(dir.clone() + "/mod.rs")).unwrap_or(false)).collect::<Vec<&FileRef>>()
 		].iter().flatten().map(|file| file.file_name_no_extension().to_owned()).collect();
 
 		// Generate and mod-file code.
@@ -106,7 +106,7 @@ pub fn generate_exports_for_crate(crate_path:&str) -> Result<(), Box<dyn Error>>
 }
 
 /// Check if a file contains public exports in the surface level.
-fn file_contains_pub_exports(file:&FileRef) -> bool {
+fn file_contains_pub_exports(file:&FileRef) -> Result<bool, Box<dyn Error>> {
 	use omni_parser::NestedCodeParser;
 	use regex::Regex;
 
@@ -132,8 +132,8 @@ fn file_contains_pub_exports(file:&FileRef) -> bool {
 					&("doc-comment", false, "///", "\n"),
 					&("single-line-comment", false, "//", "\n"),
 					&("multi-line-comment", false, "/*", "*/"),
-					&("quote", false, "\"", None, "\"", Some("\\")),
-					&("scope", true, "{", "}"),
+					&("quote", false, "\"", Some("\\"), "\"", Some("\\")),
+					&("scope", true, "{", "}")
 				]));
 				RUST_CODE_PARSER.as_mut().unwrap()
 			}
@@ -142,6 +142,6 @@ fn file_contains_pub_exports(file:&FileRef) -> bool {
 
 	// Find any public exports in the non-nested code.
 	let file_contents:String = file.read().unwrap_or_default();
-	let surface_code:String = rust_code_parser.parse(&file_contents, true).iter().filter(|segment| segment.depth() == 0).map(|segment| segment.contents()).collect::<Vec<&str>>().join("\n");
-	export_regex.is_match(&surface_code)
+	let surface_code:String = rust_code_parser.parse(&file_contents)?.contents().iter().filter(|segment| !segment.matched()).map(|segment| segment.open_tag()).collect::<Vec<&str>>().join("\n");
+	Ok(export_regex.is_match(&surface_code))
 }
