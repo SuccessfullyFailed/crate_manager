@@ -67,6 +67,7 @@ pub fn generate_exports_for_crate(crate_path:&str) -> Result<(), Box<dyn Error>>
 			undiscovered_dirs.extend_from_slice(&dir.list_dirs());
 		}
 	}
+	mod_files.sort_by(|a, b| b.len().cmp(&a.len()));
 	
 	// Generate exports for all mod files that contain the auto-export tag.
 	for mod_file in mod_files {
@@ -82,7 +83,7 @@ pub fn generate_exports_for_crate(crate_path:&str) -> Result<(), Box<dyn Error>>
 		let all_sources:Vec<String> = [source_files.clone(), sub_mod_dirs.clone()].iter().flatten().map(|file| file.file_name_no_extension().to_owned()).collect();
 		let sources_with_exports:Vec<String> = [
 			source_files.iter().filter(|&file| file_contains_pub_exports(file).unwrap_or(false)).collect::<Vec<&FileRef>>(),
-			sub_mod_dirs.iter().filter(|&dir| file_contains_pub_exports(&(dir.clone() + "/mod.rs")).unwrap_or(false)).collect::<Vec<&FileRef>>()
+			sub_mod_dirs.iter().filter(|&dir| file_contains_pub_exports(&(dir.clone() + "/" + MOD_FILE_NAME)).unwrap_or(false)).collect::<Vec<&FileRef>>()
 		].iter().flatten().map(|file| file.file_name_no_extension().to_owned()).collect();
 
 		// Generate and mod-file code.
@@ -97,7 +98,7 @@ pub fn generate_exports_for_crate(crate_path:&str) -> Result<(), Box<dyn Error>>
 
 		// If generated code does not match current contents, overwrite.
 		if original_mod_file_code != new_mod_file_contents {
-			mod_file.write(&new_mod_file_contents)?;
+			mod_file.write_await(&new_mod_file_contents)?;
 		}
 	}
 
@@ -107,7 +108,7 @@ pub fn generate_exports_for_crate(crate_path:&str) -> Result<(), Box<dyn Error>>
 
 /// Check if a file contains public exports in the surface level.
 fn file_contains_pub_exports(file:&FileRef) -> Result<bool, Box<dyn Error>> {
-	use omni_parser::NestedCodeParser;
+	use omni_parser::{ NestedCodeParser, NestedCode };
 	use regex::Regex;
 
 	// Keep a static version of the export finding regex.
@@ -142,6 +143,7 @@ fn file_contains_pub_exports(file:&FileRef) -> Result<bool, Box<dyn Error>> {
 
 	// Find any public exports in the non-nested code.
 	let file_contents:String = file.read().unwrap_or_default();
-	let surface_code:String = rust_code_parser.parse(&file_contents)?.contents().iter().filter(|segment| !segment.matched()).map(|segment| segment.open_tag()).collect::<Vec<&str>>().join("\n");
+	let result:NestedCode = rust_code_parser.parse(&file_contents)?;
+	let surface_code:String = result.open_tag().to_owned() + &result.contents().iter().filter(|segment| !segment.matched()).map(|segment| segment.open_tag()).collect::<Vec<&str>>().join("\n");
 	Ok(export_regex.is_match(&surface_code))
 }
