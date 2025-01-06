@@ -1,5 +1,5 @@
-use file_ref::FileRef;
 use std::error::Error;
+use file_ref::FileRef;
 
 
 
@@ -77,14 +77,14 @@ pub fn generate_exports_for_crate(crate_path:&str) -> Result<(), Box<dyn Error>>
 		}
 		let mod_dir:FileRef = mod_file.parent_dir()?;
 		let source_files:Vec<FileRef> = mod_dir.scanner().include_files().filter(|file| file.name() != LIB_FILE_NAME && file.name() != MOD_FILE_NAME).collect();
-		let sub_mod_dirs:Vec<FileRef> = mod_dir.scanner().include_dirs().filter(|dir| (dir.clone() + "/" + MOD_FILE_NAME).exists()).collect();
+		let sub_mod_files:Vec<(FileRef, FileRef)> = mod_dir.scanner().include_dirs().map(|dir| (dir.clone(), dir.clone() + "/" + MOD_FILE_NAME)).filter(|(_, mod_file)| mod_file.exists()).collect();
+		let source_dirs:Vec<FileRef> = sub_mod_files.iter().map(|(dir, _)| dir.clone()).collect::<Vec<FileRef>>();
 
 		// Create a list of all sources found and another containing all sources that have public exports.
-		let all_sources:Vec<String> = [source_files.clone(), sub_mod_dirs.clone()].iter().flatten().map(|file| file.file_name_no_extension().to_owned()).collect();
-		let sources_with_exports:Vec<String> = [
-			source_files.iter().filter(|&file| file_contains_pub_exports(file).unwrap_or(false)).collect::<Vec<&FileRef>>(),
-			sub_mod_dirs.iter().filter(|&dir| file_contains_pub_exports(&(dir.clone() + "/" + MOD_FILE_NAME)).unwrap_or(false)).collect::<Vec<&FileRef>>()
-		].iter().flatten().map(|file| file.file_name_no_extension().to_owned()).collect();
+		let all_source_names:Vec<String> = [source_files.clone(), source_dirs.clone()].iter().flatten().map(|file| file.file_name_no_extension().to_owned()).collect();
+		let source_files_with_exports:Vec<&FileRef> = source_files.iter().filter(|&file| file_contains_pub_exports(file).unwrap_or(false)).collect::<Vec<&FileRef>>();
+		let source_dirs_with_exports:Vec<&FileRef> = sub_mod_files.iter().filter(|&(_, mod_file)| file_contains_pub_exports(mod_file).unwrap_or(false)).map(|(dir, _)| dir).collect::<Vec<&FileRef>>();
+		let sources_with_exports:Vec<String> = [source_files_with_exports, source_dirs_with_exports].iter().flatten().map(|file| file.file_name_no_extension().to_owned()).collect();
 
 		// Generate and mod-file code.
 		let prefix:&str = original_mod_file_code.split(AUTO_EXPORT_TAG).next().unwrap_or("");
@@ -92,7 +92,7 @@ pub fn generate_exports_for_crate(crate_path:&str) -> Result<(), Box<dyn Error>>
 			"{}{}\n{}\n{}",
 			prefix,
 			AUTO_EXPORT_TAG,
-			all_sources.iter().map(|source| format!("mod {source};")).collect::<Vec<String>>().join("\n"),
+			all_source_names.iter().map(|source| format!("mod {source};")).collect::<Vec<String>>().join("\n"),
 			sources_with_exports.iter().map(|source| format!("pub use {source}::*;")).collect::<Vec<String>>().join("\n")
 		);
 
@@ -106,7 +106,7 @@ pub fn generate_exports_for_crate(crate_path:&str) -> Result<(), Box<dyn Error>>
 	Ok(())
 }
 
-/// Check if a file contains public exports in the surface level.
+/// Check if a code snipper contains public exports in the surface level.
 fn file_contains_pub_exports(file:&FileRef) -> Result<bool, Box<dyn Error>> {
 	use omni_parser::{ NestedCodeParser, NestedCode };
 	use regex::Regex;
@@ -142,8 +142,7 @@ fn file_contains_pub_exports(file:&FileRef) -> Result<bool, Box<dyn Error>> {
 	};
 
 	// Find any public exports in the non-nested code.
-	let file_contents:String = file.read().unwrap_or_default();
-	let result:NestedCode = rust_code_parser.parse(&file_contents)?;
+	let result:NestedCode = rust_code_parser.parse(&file.read()?)?;
 	let surface_code:String = result.open_tag().to_owned() + &result.contents().iter().filter(|segment| !segment.matched()).map(|segment| segment.open_tag()).collect::<Vec<&str>>().join("\n");
 	Ok(export_regex.is_match(&surface_code))
 }

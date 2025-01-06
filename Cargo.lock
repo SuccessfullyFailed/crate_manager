@@ -66,7 +66,7 @@ checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 [[package]]
 name = "omni_parser"
 version = "0.1.0"
-source = "git+https://github.com/SuccessfullyFailed/omni_parser.git?branch=no-build-script#8965acf1971e5d2813c3a7b8e390704133a2240f"
+source = "git+https://github.com/SuccessfullyFailed/omni_parser.git?branch=no-build-script#e8e04e58401a577e332e54530d228957f4956a3e"
 dependencies = [
  "file_ref",
 ]
