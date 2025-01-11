@@ -143,6 +143,6 @@ fn file_contains_pub_exports(file:&FileRef) -> Result<bool, Box<dyn Error>> {
 
 	// Find any public exports in the non-nested code.
 	let result:NestedCode = rust_code_parser.parse(&file.read()?)?;
-	let surface_code:String = result.open_tag().to_owned() + &result.contents().iter().filter(|segment| !segment.matched()).map(|segment| segment.open_tag()).collect::<Vec<&str>>().join("\n");
+	let surface_code:String = result.contents().iter().filter(|segment| !segment.matched()).map(|segment| segment.contents_joined()).collect::<Vec<String>>().join("");
 	Ok(export_regex.is_match(&surface_code))
 }
