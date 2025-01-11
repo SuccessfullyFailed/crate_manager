@@ -24,6 +24,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "crate_manager"
+version = "0.1.0"
+dependencies = [
+ "file_ref",
+ "omni_parser",
+ "regex",
+]
+
+[[package]]
 name = "file_ref"
 version = "0.1.0"
 source = "git+https://github.com/SuccessfullyFailed/file_ref.git#2cab07da9c0cc360c551dea2cf5712e1d3734207"
@@ -40,15 +49,6 @@ dependencies = [
  "cfg-if",
  "libc",
  "wasi",
-]
-
-[[package]]
-name = "lib_export_generator"
-version = "0.1.0"
-dependencies = [
- "file_ref",
- "omni_parser",
- "regex",
 ]
 
 [[package]]
