@@ -1,3 +1,4 @@
+use omni_parser::{ NestedCodeParser, NestedCodeSegment };
 use std::error::Error;
 use file_ref::FileRef;
 
@@ -108,7 +109,6 @@ pub fn generate_exports_for_crate(crate_path:&str) -> Result<(), Box<dyn Error>>
 
 /// Check if a code snipper contains public exports in the surface level.
 fn file_contains_pub_exports(file:&FileRef) -> Result<bool, Box<dyn Error>> {
-	use omni_parser::{ NestedCodeParser, NestedCode };
 	use regex::Regex;
 
 	// Keep a static version of the export finding regex.
@@ -142,7 +142,7 @@ fn file_contains_pub_exports(file:&FileRef) -> Result<bool, Box<dyn Error>> {
 	};
 
 	// Find any public exports in the non-nested code.
-	let result:NestedCode = rust_code_parser.parse(&file.read()?)?;
-	let surface_code:String = result.contents().iter().filter(|segment| !segment.matched()).map(|segment| segment.contents_joined()).collect::<Vec<String>>().join("");
+	let result:NestedCodeSegment = rust_code_parser.parse(&file.read()?);
+	let surface_code:String = result.sub_segments().iter().map(|segment| segment.inner_contents()).collect::<Vec<&str>>().join("\n");
 	Ok(export_regex.is_match(&surface_code))
 }

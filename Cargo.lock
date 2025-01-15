@@ -24,6 +24,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "crate_manager"
+version = "0.1.0"
+dependencies = [
+ "file_ref",
+ "omni_parser",
+ "regex",
+]
+
+[[package]]
 name = "file_ref"
 version = "0.1.0"
 source = "git+https://github.com/SuccessfullyFailed/file_ref.git#2cab07da9c0cc360c551dea2cf5712e1d3734207"
@@ -43,15 +52,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lib_export_generator"
-version = "0.1.0"
-dependencies = [
- "file_ref",
- "omni_parser",
- "regex",
-]
-
-[[package]]
 name = "libc"
 version = "0.2.169"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -66,9 +66,10 @@ checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 [[package]]
 name = "omni_parser"
 version = "0.1.0"
-source = "git+https://github.com/SuccessfullyFailed/omni_parser.git?branch=no-build-script#e8e04e58401a577e332e54530d228957f4956a3e"
+source = "git+https://github.com/SuccessfullyFailed/omni_parser.git?branch=no-build-script#280e0c4f17fb637b977fa75ea2c2bd36e8e81fd5"
 dependencies = [
  "file_ref",
+ "regex",
 ]
 
 [[package]]
@@ -82,9 +83,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.92"
+version = "1.0.93"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37d3544b3f2748c54e147655edb5025752e2303145b5aefb3c3ea2c78b973bb0"
+checksum = "60946a68e5f9d28b0dc1c21bb8a97ee7d018a8b322fa57838ba31cc878e22d99"
 dependencies = [
  "unicode-ident",
 ]
@@ -159,9 +160,9 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "syn"
-version = "2.0.95"
+version = "2.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46f71c0377baf4ef1cc3e3402ded576dccc315800fbc62dfc7fe04b009773b4a"
+checksum = "d5d0adab1ae378d7f53bdebc67a39f1f151407ef230f0ce2883572f5d8985c80"
 dependencies = [
  "proc-macro2",
  "quote",
