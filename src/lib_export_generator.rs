@@ -122,7 +122,7 @@ fn file_contains_pub_exports(file:&FileRef) -> Result<bool, Box<dyn Error>> {
 					&("multi-line-comment", false, "/*", "*/"),
 					&("quote", false, "\"", Some("\\"), "\"", Some("\\")),
 					&("scope", true, "{", "}"),
-					&("export", r#"(^|\s)pub\s(struct|enum|fn|trait|impl|mod|const|static|type|use|crate|macro)\s"#)
+					&("export", r#"^pub\s(struct|enum|fn|trait|impl|mod|const|static|type|use|crate|macro)\s"#)
 				]));
 				RUST_CODE_PARSER.as_mut().unwrap()
 			}
@@ -131,6 +131,6 @@ fn file_contains_pub_exports(file:&FileRef) -> Result<bool, Box<dyn Error>> {
 
 	// Find any public exports in the non-nested code.
 	let parser_result:NestedSegment = rust_code_parser.parse(&file.read()?);
-	let surface_exports:Vec<(usize, &NestedSegmentCode)> = parser_result.flat_code_filtered(|depth, code| depth == 0 && &code.type_name == "export");
+	let surface_exports:Vec<(usize, &NestedSegmentCode)> = parser_result.flat_code_filtered(|depth, code| depth == 1 && &code.type_name == "export");
 	Ok(!surface_exports.is_empty())
 }
