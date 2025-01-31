@@ -34,7 +34,7 @@ dependencies = [
 [[package]]
 name = "file_ref"
 version = "0.1.0"
-source = "git+https://github.com/SuccessfullyFailed/file_ref.git#797dfb9f260589743baf8c007fd4f98c8314cf4e"
+source = "git+https://github.com/SuccessfullyFailed/file_ref.git#ce3a1861da67ff44c22e2fecef0b7f6e53c7a413"
 dependencies = [
  "unit_test_support",
 ]
@@ -65,7 +65,7 @@ checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 [[package]]
 name = "omni_parser"
 version = "0.1.0"
-source = "git+https://github.com/SuccessfullyFailed/omni_parser.git?branch=no-build-script#ecc99d9e157911de00c3097cffdb218ae38e9c70"
+source = "git+https://github.com/SuccessfullyFailed/omni_parser.git?branch=no-build-script#a132ce764cbc121ab82138f09d9aa6eec827c365"
 dependencies = [
  "file_ref",
  "regex",
