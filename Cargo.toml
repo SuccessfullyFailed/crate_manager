@@ -6,4 +6,3 @@ edition = "2021"
 [dependencies]
 file_ref={ git="https://github.com/SuccessfullyFailed/file_ref.git" }
 omni_parser={ git="https://github.com/SuccessfullyFailed/omni_parser.git", branch="no-build-script" }
-regex = "1.11.1"

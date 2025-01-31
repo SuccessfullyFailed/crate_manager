@@ -1,4 +1,4 @@
-use omni_parser::{ NestedCodeParser, NestedCodeSegment };
+use omni_parser::{ NestedCodeParser, NestedSegment, NestedSegmentCode };
 use std::error::Error;
 use file_ref::FileRef;
 
@@ -109,19 +109,6 @@ pub fn generate_exports_for_crate(crate_path:&str) -> Result<(), Box<dyn Error>>
 
 /// Check if a code snipper contains public exports in the surface level.
 fn file_contains_pub_exports(file:&FileRef) -> Result<bool, Box<dyn Error>> {
-	use regex::Regex;
-
-	// Keep a static version of the export finding regex.
-	static mut EXPORT_REGEX:Option<Regex> = None;
-	let export_regex:&Regex = unsafe {
-		match EXPORT_REGEX.as_mut() {
-			Some(regex) => regex,
-			None => {
-				EXPORT_REGEX = Some(Regex::new(r#"(^|\s)pub\s(struct|enum|fn|trait|impl|mod|const|static|type|use|crate|macro)\s"#).unwrap());
-				EXPORT_REGEX.as_ref().unwrap()
-			}
-		}
-	};
 
 	// Keep a static version of a rust code parser.
 	static mut RUST_CODE_PARSER:Option<NestedCodeParser> = None;
@@ -134,7 +121,8 @@ fn file_contains_pub_exports(file:&FileRef) -> Result<bool, Box<dyn Error>> {
 					&("single-line-comment", false, "//", "\n"),
 					&("multi-line-comment", false, "/*", "*/"),
 					&("quote", false, "\"", Some("\\"), "\"", Some("\\")),
-					&("scope", true, "{", "}")
+					&("scope", true, "{", "}"),
+					&("export", r#"(^|\s)pub\s(struct|enum|fn|trait|impl|mod|const|static|type|use|crate|macro)\s"#)
 				]));
 				RUST_CODE_PARSER.as_mut().unwrap()
 			}
@@ -142,7 +130,7 @@ fn file_contains_pub_exports(file:&FileRef) -> Result<bool, Box<dyn Error>> {
 	};
 
 	// Find any public exports in the non-nested code.
-	let result:NestedCodeSegment = rust_code_parser.parse(&file.read()?);
-	let surface_code:String = result.sub_segments().iter().map(|segment| segment.inner_contents()).collect::<Vec<&str>>().join("\n");
-	Ok(export_regex.is_match(&surface_code))
+	let parser_result:NestedSegment = rust_code_parser.parse(&file.read()?);
+	let surface_exports:Vec<(usize, &NestedSegmentCode)> = parser_result.flat_code_filtered(|depth, code| depth == 0 && &code.type_name == "export");
+	Ok(!surface_exports.is_empty())
 }
