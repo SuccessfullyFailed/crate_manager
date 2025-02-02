@@ -23,7 +23,7 @@ pub(crate) fn generate_exports_for_mod(mod_file:&mut ModFile) -> Result<(), Box<
 	}
 
 	// Create a list of all sources found and another containing all sources that have public exports.
-	let sources:[Vec<(String, bool)>; 2] = [
+	let mut sources:Vec<(String, bool)> = [
 		mod_file.source_files.iter_mut().map(|file| (
 			file.path.file_name_no_extension().to_string(),
 			file_contains_pub_exports(file).unwrap_or(false
@@ -32,7 +32,8 @@ pub(crate) fn generate_exports_for_mod(mod_file:&mut ModFile) -> Result<(), Box<
 			mod_file.file.path.parent_dir().unwrap().file_name_no_extension().to_string(),
 			file_contains_pub_exports(&mut mod_file.file).unwrap_or(false)
 		)).collect::<Vec<(String, bool)>>()
-	];
+	].iter().flatten().cloned().collect::<Vec<(String, bool)>>();
+	sources.sort_by(|a, b| a.0.len().cmp(&b.0.len()));
 
 	// Generate and update mod-file code.
 	let prefix:&str = original_mod_file_code.split(AUTO_EXPORT_TAG).next().unwrap_or("");
@@ -40,8 +41,8 @@ pub(crate) fn generate_exports_for_mod(mod_file:&mut ModFile) -> Result<(), Box<
 		"{}{}\n{}\n{}",
 		prefix,
 		AUTO_EXPORT_TAG,
-		sources.iter().flatten().map(|source| format!("mod {};", &source.0)).collect::<Vec<String>>().join("\n"),
-		sources.iter().flatten().filter(|source| source.1).map(|source| format!("pub use {}::*;", &source.0)).collect::<Vec<String>>().join("\n")
+		sources.iter().map(|source| format!("mod {};", &source.0)).collect::<Vec<String>>().join("\n"),
+		sources.iter().filter(|source| source.1).map(|source| format!("pub use {}::*;", &source.0)).collect::<Vec<String>>().join("\n")
 	);
 	if new_mode_code != original_mod_file_code {
 		mod_file.file.mod_contents(move |contents| *contents = new_mode_code.clone())?;
