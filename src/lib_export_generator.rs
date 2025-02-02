@@ -1,4 +1,4 @@
-use omni_parser::{ NestedCodeParser, NestedSegment, NestedSegmentCode };
+use omni_parser::NestedSegment;
 use crate::files::{CodeFile, ModFile};
 use std::error::Error;
 
@@ -17,10 +17,13 @@ pub(crate) fn generate_exports_for_mod(mod_file:&mut ModFile) -> Result<(), Box<
 	}
 
 	// Validate file contains export tag.
-	let original_mod_file_code:&str = mod_file.file.get_contents()?;
-	if !original_mod_file_code.contains(AUTO_EXPORT_TAG) {
+	let mod_file_contents:&NestedSegment = mod_file.file.contents()?;
+	let mod_file_contents_flat:Vec<(usize, &NestedSegment)> = mod_file_contents.flat();
+	let export_tag_index:Option<usize> = mod_file_contents_flat.iter().position(|(_, segment)| segment.type_name().contains("comment") && segment.to_string().contains(AUTO_EXPORT_TAG));
+	if export_tag_index.is_none() {
 		return Ok(());
 	}
+	let export_tag_index:usize = export_tag_index.unwrap();
 
 	// Create a list of all sources found and another containing all sources that have public exports.
 	let mut sources:Vec<(String, bool)> = [
@@ -35,17 +38,19 @@ pub(crate) fn generate_exports_for_mod(mod_file:&mut ModFile) -> Result<(), Box<
 	].iter().flatten().cloned().collect::<Vec<(String, bool)>>();
 	sources.sort_by(|a, b| a.0.len().cmp(&b.0.len()));
 
-	// Generate and update mod-file code.
-	let prefix:&str = original_mod_file_code.split(AUTO_EXPORT_TAG).next().unwrap_or("");
-	let new_mode_code:String =format!(
-		"{}{}\n{}\n{}",
-		prefix,
-		AUTO_EXPORT_TAG,
-		sources.iter().map(|source| format!("mod {};", &source.0)).collect::<Vec<String>>().join("\n"),
-		sources.iter().filter(|source| source.1).map(|source| format!("pub use {}::*;", &source.0)).collect::<Vec<String>>().join("\n")
-	);
-	if new_mode_code != original_mod_file_code {
-		mod_file.file.mod_contents(move |contents| *contents = new_mode_code.clone())?;
+	// Generate new export segments.
+	let current_exports:Vec<NestedSegment> = if export_tag_index == mod_file_contents_flat.len() { Vec::new() } else { mod_file_contents_flat[export_tag_index + 1..].iter().map(|(_, segment)| (*segment).clone()).collect::<Vec<NestedSegment>>() };
+	let new_exports:Vec<NestedSegment> = [
+		sources.iter().map(|source| NestedSegment::new_code("mod_import", &format!("mod {};", &source.0), Vec::new(), "")).collect::<Vec<NestedSegment>>(),
+		sources.iter().filter(|source| source.1).map(|source| NestedSegment::new_code("export", &format!("pub use {}::*;", &source.0), Vec::new(), "")).collect::<Vec<NestedSegment>>()
+	].iter().flatten().cloned().collect();
+
+	// Replace and write new segments.
+	if new_exports != current_exports {
+		let mut mod_file_contents:Vec<(usize, NestedSegment)> = mod_file.file.contents_mut()?.flat().iter().map(|(depth, segment)| (*depth, (*segment).clone())).collect::<Vec<(usize, NestedSegment)>>();
+		mod_file_contents.drain(export_tag_index + 1..);
+		mod_file_contents.extend(new_exports.iter().map(|export| (0, export.clone())).collect::<Vec<(usize, NestedSegment)>>());
+		*mod_file.file.contents_mut()? = NestedSegment::from_flat(mod_file_contents).unwrap();
 	}
 
 	// Return success.
@@ -54,28 +59,5 @@ pub(crate) fn generate_exports_for_mod(mod_file:&mut ModFile) -> Result<(), Box<
 
 /// Check if a code snipper contains public exports in the surface level.
 fn file_contains_pub_exports(file:&mut CodeFile) -> Result<bool, Box<dyn Error>> {
-
-	// Keep a static version of a rust code parser.
-	static mut RUST_CODE_PARSER:Option<NestedCodeParser> = None;
-	let rust_code_parser:&NestedCodeParser = unsafe {
-		match RUST_CODE_PARSER.as_mut() {
-			Some(parser) => parser,
-			None => {
-				RUST_CODE_PARSER = Some(NestedCodeParser::new(vec![
-					&("doc-comment", false, "///", "\n"),
-					&("single-line-comment", false, "//", "\n"),
-					&("multi-line-comment", false, "/*", "*/"),
-					&("quote", false, "\"", Some("\\"), "\"", Some("\\")),
-					&("scope", true, "{", "}"),
-					&("export", r#"^pub\s(struct|enum|fn|trait|impl|mod|const|static|type|use|crate|macro)\s"#)
-				]));
-				RUST_CODE_PARSER.as_mut().unwrap()
-			}
-		}
-	};
-
-	// Find any public exports in the non-nested code.
-	let parser_result:NestedSegment = rust_code_parser.parse(file.get_contents()?);
-	let surface_exports:Vec<(usize, &NestedSegmentCode)> = parser_result.flat_code_filtered(|depth, code| depth == 1 && &code.type_name == "export");
-	Ok(!surface_exports.is_empty())
+	Ok(!file.contents()?.flat_code_filtered(|depth, code| depth == 1 && &code.type_name == "export").is_empty())
 }

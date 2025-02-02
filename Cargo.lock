@@ -12,9 +12,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cachew"
+version = "0.1.0"
+source = "git+https://github.com/SuccessfullyFailed/cachew.git#03854d37793219d1369c00bf77ebd1e86b561a16"
+
+[[package]]
 name = "crate_manager"
 version = "0.1.0"
 dependencies = [
+ "cachew",
  "file_ref",
  "omni_parser",
 ]
@@ -33,7 +39,7 @@ checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 [[package]]
 name = "omni_parser"
 version = "0.1.0"
-source = "git+https://github.com/SuccessfullyFailed/omni_parser.git?branch=no-build-script#1f85532f8ae87d85378d900c0bbda2a560af199f"
+source = "git+https://github.com/SuccessfullyFailed/omni_parser.git?branch=no-build-script#b4fd074dc9a58dad89eae602e9333cd0596e75bf"
 dependencies = [
  "file_ref",
  "regex",

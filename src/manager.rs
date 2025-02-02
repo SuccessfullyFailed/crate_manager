@@ -77,7 +77,7 @@ impl CrateManager {
 	}
 
 	/// Process a code file.
-	fn process_code_file(&mut self, code_file:&mut CodeFile) -> Result<(), Box<dyn Error>> {
+	fn process_code_file(&mut self, _code_file:&mut CodeFile) -> Result<(), Box<dyn Error>> {
 		Ok(())
 	}
 }

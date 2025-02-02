@@ -1,5 +1,7 @@
 use std::error::Error;
+use cachew::cache;
 use file_ref::FileRef;
+use omni_parser::{NestedCodeParser, NestedSegment};
 
 
 
@@ -96,7 +98,8 @@ pub(crate) struct CodeFile {
 	pub path:FileRef,
 	read_contents:bool,
 	contents:String,
-	modified:bool,
+	parsed_contents:NestedSegment,
+	gotten_mutable:bool,
 	stored_changes:bool
 }
 impl CodeFile {
@@ -107,35 +110,57 @@ impl CodeFile {
 			path,
 			read_contents: false,
 			contents: String::new(),
-			modified: false,
+			parsed_contents: NestedSegment::new_code(omni_parser::ROOT_NAME, "", Vec::new(), ""),
+			gotten_mutable: false,
 			stored_changes: false
 		}
 	}
 
-	/// Get the contents of the file.
-	pub fn get_contents(&mut self) -> Result<&str, Box<dyn Error>> {
+	/// Read file contents if not read before.
+	fn read_contents(&mut self) -> Result<(), Box<dyn Error>> {
 		if !self.read_contents {
 			self.contents = self.path.read()?;
+			self.parsed_contents = Self::contents_parser().parse(&self.contents);
 			self.read_contents = true;
 		}
-		Ok(&self.contents)
+		Ok(())
 	}
 
-	/// Modify the contents of the file.
-	pub fn mod_contents<T>(&mut self, modification:T) -> Result<(), Box<dyn Error>> where T:Fn(&mut String) {
-		if !self.read_contents {
-			self.contents = self.path.read()?;
-			self.read_contents = true;
-		}
-		modification(&mut self.contents);
-		self.modified = true;
-		Ok(())
+	/// Get the contents of the file.
+	pub fn contents(&mut self) -> Result<&NestedSegment, Box<dyn Error>> {
+		self.read_contents()?;
+		Ok(self.contents_mut()? as &NestedSegment)
+	}
+
+	/// Get the mutable contents of the file.
+	pub fn contents_mut(&mut self) -> Result<&mut NestedSegment, Box<dyn Error>> {
+		self.read_contents()?;
+		self.gotten_mutable = true;
+		Ok(&mut self.parsed_contents)
+	}
+
+	/// Get the contents parser.
+	fn contents_parser() -> &'static NestedCodeParser {
+		cache!(
+			NestedCodeParser,
+			NestedCodeParser::new(vec![
+				&("doc-comment", false, "///", "\n"),
+				&("single-line-comment", false, "//", "\n"),
+				&("multi-line-comment", false, "/*", "*/"),
+				&("quote", false, "\"", Some("\\"), "\"", Some("\\")),
+				&("scope", true, "{", "}"),
+				&("export", r#"^pub\s(struct|enum|fn|trait|impl|mod|const|static|type|use|crate|macro)\s"#)
+			])
+		)
 	}
 
 	/// Save changes to the structure.
 	pub fn store_changes(&mut self) -> Result<(), Box<dyn Error>> {
-		if self.modified {
-			self.path.write(&self.contents)?;
+		if self.gotten_mutable {
+			let new_contents:String = self.parsed_contents.to_string();
+			if new_contents != self.contents {
+				self.path.write(&self.contents.to_string())?;
+			}
 			self.stored_changes = true;
 		}
 		Ok(())
@@ -143,7 +168,7 @@ impl CodeFile {
 }
 impl Drop for CodeFile {
 	fn drop(&mut self) {
-		if self.modified && !self.stored_changes {
+		if self.gotten_mutable && !self.stored_changes {
 			eprintln!("Dropped modified file '{}' before storing changes.", self.path);
 		}
 	}
