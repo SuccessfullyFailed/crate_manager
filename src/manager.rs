@@ -1,4 +1,4 @@
-use crate::{ files::CrateDir, lib_export_generator };
+use crate::{ files::{CodeFile, CrateDir, ModFile}, lib_export_generator };
 use std::error::Error;
 use file_ref::FileRef;
 
@@ -38,20 +38,7 @@ impl CrateManager {
 		let mut crate_dirs:Vec<CrateDir> = CrateDir::list_in(FileRef::working_dir());
 		println!("[CrateManager]");
 		for crate_dir in &mut crate_dirs {
-			println!("{}", crate_dir.path);
-
-			// Crate dir modifications.
-
-			// Mod file modifications.
-			for mod_file in &mut crate_dir.mod_files {
-				println!("\t{}", mod_file.file.path);
-				if self.generate_exports {
-					println!("\t\t + auto_exports");
-					lib_export_generator::generate_exports_for_mod(mod_file)?;
-				}
-
-				// Code file modifications.
-			}
+			self.process_crate_dir(crate_dir)?;
 		}
 
 		// Store modifications to file.
@@ -60,6 +47,37 @@ impl CrateManager {
 		}
 
 		// Return modified files list.
+		Ok(())
+	}
+
+	/// Process a CrateDir.
+	fn process_crate_dir(&mut self, crate_dir:&mut CrateDir) -> Result<(), Box<dyn Error>> {
+		println!("{}", crate_dir.path);
+		for mod_file in &mut crate_dir.mod_files {
+			self.process_mod_file(mod_file)?;
+		}
+		Ok(())
+	}
+
+	/// Process a ModFile.
+	fn process_mod_file(&mut self, mod_file:&mut ModFile) -> Result<(), Box<dyn Error>> {
+		for sub_mod_file in &mut mod_file.sub_mod_files {
+			self.process_mod_file(sub_mod_file)?;
+		}
+		for code_file in &mut mod_file.source_files {
+			self.process_code_file(code_file)?;
+		}
+		println!("\t{}", mod_file.file.path);
+		if self.generate_exports {
+			println!("\t\t + auto_exports");
+			lib_export_generator::generate_exports_for_mod(mod_file)?;
+		}
+
+		Ok(())
+	}
+
+	/// Process a code file.
+	fn process_code_file(&mut self, code_file:&mut CodeFile) -> Result<(), Box<dyn Error>> {
 		Ok(())
 	}
 }
