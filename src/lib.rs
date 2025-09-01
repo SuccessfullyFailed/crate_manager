@@ -1,6 +1,13 @@
-// auto-export
-mod files;
-mod manager;
-mod manager_u;
-mod lib_export_generator;
-pub use manager::*;
+/// On tests, auto-generate own crates exports.
+#[cfg(test)]
+#[test]
+fn test() {
+	crate::ExportsFinder::new(file_ref::FileRef::working_dir() + "/src/lib.rs").find_all().unwrap();
+}
+
+
+
+// auto-exports
+mod imports_and_exports;
+
+pub use imports_and_exports::{ AUTO_EXPORTS_TAG, MODULE_IMPORT_TAG, PARSER_EXPORT_TAG, PARSER_PUB_TYPE_TAG, PARSER_TYPE_TAG, PARSER_IDENTIFIER_TAG, PARSER_AUTO_EXPORTS_TRIGGER_TAG, imports_exports_parser, ExportsFinder };
