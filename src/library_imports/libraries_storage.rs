@@ -133,8 +133,13 @@ impl Library {
 		}
 	}
 
-	/// Create a string importing the library, able to be pasted in a Cargo.toml file.
+	/// Create a string that can be used for importing the library. Contains the name of the import and can be pasted directly into the Cargo.Toml.
 	pub fn as_import_string(&self) -> String {
+		self.name.clone() + &self.as_import_value()
+	}
+
+	/// Create a value that can be used for importing the library. Does not contain the name of the import.
+	pub fn as_import_value(&self) -> String {
 		const QUOTED:fn(&str) -> String = |source| format!("\"{}\"", source.trim().trim_matches('"'));
 
 		let mut properties:Vec<(&'static str, String)> = Vec::new();
@@ -148,8 +153,7 @@ impl Library {
 			properties.push(("git", QUOTED(git_url)));
 		}
 		format!(
-			"{}={} {} {}",
-			self.name,
+			"{} {} {}",
 			'{',
 			properties.iter().map(|(name, value)| format!("{name}={value}")).collect::<Vec<String>>().join(", "),
 			'}'

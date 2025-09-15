@@ -1,23 +1,23 @@
-use crate::{ imports_and_exports::{ data_structs::PubType, imports_exports_parser, AUTO_EXPORTS_TAG }, Export, Import, MODULE_IMPORT_TAG, PARSER_AUTO_EXPORTS_TRIGGER_TAG, PARSER_EXPORT_TAG, PARSER_IDENTIFIER_TAG, PARSER_PUB_TYPE_TAG, PARSER_TYPE_TAG };
+use crate::{ imports_exports_parser, PubType, Export, Import, item_imports_and_exports::{ AUTO_EXPORTS_TAG }, MODULE_IMPORT_TAG, PARSER_AUTO_EXPORTS_TRIGGER_TAG, PARSER_EXPORT_TAG, PARSER_IDENTIFIER_TAG, PARSER_PUB_TYPE_TAG, PARSER_TYPE_TAG };
 use std::error::Error;
 use file_ref::FileRef;
 
 
 
-pub struct ImportExportUpdater {
+pub struct ItemImportExportUpdater {
 	file:FileRef,
 	is_mod_file:bool,
 	parsed:bool,
 	imports:Vec<Import>,
 	exports:[(PubType, Vec<Export>); 3],
-	sub_finders:Vec<ImportExportUpdater>
+	sub_finders:Vec<ItemImportExportUpdater>
 }
-impl ImportExportUpdater {
+impl ItemImportExportUpdater {
 
 	/// Create a new exports finder.
-	pub fn new(file:&str) -> ImportExportUpdater {
+	pub fn new(file:&str) -> ItemImportExportUpdater {
 		let file:FileRef = FileRef::new(file).absolute();
-		ImportExportUpdater {
+		ItemImportExportUpdater {
 			file: file.clone(),
 			is_mod_file: file.name() == "lib.rs" || file.name() == "mod.rs",
 			parsed: false,
@@ -73,19 +73,19 @@ impl ImportExportUpdater {
 			let next_file_refix:FileRef = self.file.parent_dir()? + "/" + &import.identifier;
 			for next_file in [next_file_refix.clone() + ".rs", next_file_refix.clone() + "/mod.rs"] {
 				if next_file.exists() {
-					self.sub_finders.push(ImportExportUpdater::new(next_file.path()));
+					self.sub_finders.push(ItemImportExportUpdater::new(next_file.path()));
 				}
 			}
 		}
 		if self.is_mod_file {
 			for file in self.file.parent_dir()?.scanner().include_files().filter(|file| file.name() != "mod.rs" && file.name() != "lib.rs" && file.extension() == Some("rs")) {
 				if self.sub_finders.iter().find(|sub_finder| sub_finder.file == file).is_none() {
-					self.sub_finders.push(ImportExportUpdater::new(file.path()));
+					self.sub_finders.push(ItemImportExportUpdater::new(file.path()));
 				}
 			}
 			for file in self.file.parent_dir()?.list_dirs().into_iter().map(|dir| dir + "/mod.rs").filter(|file| file.exists()) {
 				if self.sub_finders.iter().find(|sub_finder| sub_finder.file == file).is_none() {
-					self.sub_finders.push(ImportExportUpdater::new(file.path()));
+					self.sub_finders.push(ItemImportExportUpdater::new(file.path()));
 				}
 			}
 		}
@@ -111,10 +111,10 @@ impl ImportExportUpdater {
 	}
 
 	/// Get all imports of this finder and all sub-finders.
-	fn _recursive_imports(&self) -> Vec<&Import> {
+	pub(crate) fn recursive_imports(&self) -> Vec<&Import> {
 		[
 			self.imports.iter().collect::<Vec<&Import>>(),
-			self.sub_finders.iter().map(|finder| finder._recursive_imports()).flatten().collect::<Vec<&Import>>()
+			self.sub_finders.iter().map(|finder| finder.recursive_imports()).flatten().collect::<Vec<&Import>>()
 		].into_iter().flatten().collect()
 	}
 

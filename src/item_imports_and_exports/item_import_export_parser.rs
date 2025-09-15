@@ -1,5 +1,5 @@
 use glyph_kit::{ TextMatchResult, TextMatcher, TextMatcherSet, TextMatcherSource };
-use crate::imports_and_exports::AUTO_EXPORTS_TAG;
+use crate::item_imports_and_exports::AUTO_EXPORTS_TAG;
 use cachew::cache;
 
 
