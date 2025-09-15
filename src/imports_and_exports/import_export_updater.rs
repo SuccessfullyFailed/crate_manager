@@ -161,7 +161,7 @@ impl ImportExportUpdater {
 					pub_typed_items
 						.iter()
 						.filter(|(pub_type, items)| !items.is_empty() && !(pub_type == &PubType::Super && self.is_mod_file))
-						.map(|(pub_type, items)| format!("{} use {}::{} {} {};", pub_type.to_str(), mod_name, '{', items.into_iter().map(|export| export.identifier.clone()).collect::<Vec<String>>().join(", "), '}'))
+						.map(|(pub_type, items)| format!("{} use {}::*; // {}", pub_type.to_str(), mod_name, items.into_iter().map(|export| export.identifier.clone()).collect::<Vec<String>>().join(", ")))
 						.collect::<Vec<String>>()
 						.join("\n")
 				)
