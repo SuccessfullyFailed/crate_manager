@@ -18,6 +18,21 @@ impl LibrariesStorage {
 		storage
 	}
 
+	/// Create a library storage from the contents of a file.
+	pub fn from_file(file:&str) -> LibrariesStorage {
+		let mut libraries:Vec<Library> = Vec::new();
+		let contents:String = FileRef::new(file).read().unwrap_or_default();
+		for line in contents.split('\n').map(|line| line.trim()) {
+			if !line.is_empty() {
+				let line_chars:Vec<char> = line.chars().collect();
+				let whitespace_start:usize = line_chars.iter().position(|char| char.is_whitespace()).unwrap_or(line_chars.len());
+				let whitespace_length:usize = line_chars[whitespace_start..].iter().position(|char| !char.is_whitespace()).unwrap_or(0);
+				libraries.push(Library::new(&line[..whitespace_start], &line[whitespace_start + whitespace_length..]));
+			}
+		}
+		LibrariesStorage::new(libraries)
+	}
+
 	/// Combine libraries when possible.
 	fn combine_libraries(&mut self) {
 		let mut source_index:usize = 0;

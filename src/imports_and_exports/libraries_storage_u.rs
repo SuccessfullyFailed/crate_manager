@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests {
-	use crate::{LibrariesStorage, Library};
+	use file_ref::FileRef;
+
+use crate::{LibrariesStorage, Library};
 
 
 	fn test_libs() -> Vec<Library> {
@@ -77,5 +79,46 @@ mod tests {
 
 		// Find library by name.
 		assert_eq!(storage.find("git_lib_auto").unwrap().git_url, Some("https://github.com/git_lib_auto".to_string()));
+	}
+
+	#[test]
+	fn test_library_creation_from_file() {
+
+		// Create temporary file.
+		let file:FileRef = FileRef::new("target/temp_source.txt");
+		file.write("
+			local_lib_auto Cargo.toml\n
+			git_lib_auto    https://github.com/git_lib_auto\n
+			\n
+			local_lib_auto_v	Cargo.toml 1.23.456\n
+			git_lib_auto_v		https://github.com/git_lib_auto 1.2.3\n
+			git_lib_auto_v		https://github.com/git_lib_auto 4.5.6\n
+		".to_string()).unwrap();
+
+		// Create and validate libraries storage.
+		let storage:LibrariesStorage = LibrariesStorage::from_file(file.path());
+
+		assert_eq!(storage.libraries[0].name, "local_lib_auto");
+		assert_eq!(storage.libraries[0].local_path, Some("Cargo.toml".to_string()));
+		assert_eq!(storage.libraries[0].git_url, None);
+		assert_eq!(storage.libraries[0].versions, Vec::<String>::new());
+
+		assert_eq!(storage.libraries[1].name, "git_lib_auto");
+		assert_eq!(storage.libraries[1].local_path, None);
+		assert_eq!(storage.libraries[1].git_url, Some("https://github.com/git_lib_auto".to_string()));
+		assert_eq!(storage.libraries[1].versions, Vec::<String>::new());
+
+		assert_eq!(storage.libraries[2].name, "local_lib_auto_v");
+		assert_eq!(storage.libraries[2].local_path, Some("Cargo.toml".to_string()));
+		assert_eq!(storage.libraries[2].git_url, None);
+		assert_eq!(storage.libraries[2].versions, vec!["1.23.456".to_string()]);
+
+		assert_eq!(storage.libraries[3].name, "git_lib_auto_v");
+		assert_eq!(storage.libraries[3].local_path, None);
+		assert_eq!(storage.libraries[3].git_url, Some("https://github.com/git_lib_auto".to_string()));
+		assert_eq!(storage.libraries[3].versions, vec!["1.2.3".to_string(), "4.5.6".to_string()]);
+
+		// Delete temporary file.
+		file.delete().unwrap();
 	}
 }
