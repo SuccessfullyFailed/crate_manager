@@ -1,45 +1,6 @@
-use crate::{ MODULE_IMPORT_TAG, PARSER_AUTO_EXPORTS_TRIGGER_TAG, PARSER_EXPORT_TAG, PARSER_IDENTIFIER_TAG, PARSER_PUB_TYPE_TAG, PARSER_TYPE_TAG, imports_and_exports::{ imports_exports_parser, AUTO_EXPORTS_TAG } };
+use crate::{ imports_and_exports::{ data_structs::PubType, imports_exports_parser, AUTO_EXPORTS_TAG }, Export, Import, MODULE_IMPORT_TAG, PARSER_AUTO_EXPORTS_TRIGGER_TAG, PARSER_EXPORT_TAG, PARSER_IDENTIFIER_TAG, PARSER_PUB_TYPE_TAG, PARSER_TYPE_TAG };
 use std::error::Error;
 use file_ref::FileRef;
-
-
-
-#[derive(PartialEq, Clone)]
-enum PubType { Pub, Super, Crate }
-impl PubType {
-	pub fn from_str(contents:&str) -> PubType {
-		if contents.contains("crate") {
-			PubType::Crate
-		} else if contents.contains("super") {
-			PubType::Super
-		} else {
-			PubType::Pub
-		}
-	}
-	pub fn to_str(&self) -> &str {
-		match self {
-			PubType::Pub => "pub",
-			PubType::Super => "pub(super)",
-			PubType::Crate => "pub(crate)",
-		}
-	}
-}
-
-#[derive(Clone)]
-#[allow(dead_code)]
-struct Import {
-	pub_type:Option<PubType>,
-	struct_type:String,
-	identifier:String
-}
-
-#[derive(Clone)]
-#[allow(dead_code)]
-struct Export {
-	pub_type:Option<PubType>,
-	struct_type:String,
-	identifier:String
-}
 
 
 
@@ -54,9 +15,10 @@ pub struct ImportExportUpdater {
 impl ImportExportUpdater {
 
 	/// Create a new exports finder.
-	pub fn new(file:FileRef) -> ImportExportUpdater {
+	pub fn new(file:&str) -> ImportExportUpdater {
+		let file:FileRef = FileRef::new(file).absolute();
 		ImportExportUpdater {
-			file: file.clone().absolute(),
+			file: file.clone(),
 			is_mod_file: file.name() == "lib.rs" || file.name() == "mod.rs",
 			parsed: false,
 			imports: Vec::new(),
@@ -111,19 +73,19 @@ impl ImportExportUpdater {
 			let next_file_refix:FileRef = self.file.parent_dir()? + "/" + &import.identifier;
 			for next_file in [next_file_refix.clone() + ".rs", next_file_refix.clone() + "/mod.rs"] {
 				if next_file.exists() {
-					self.sub_finders.push(ImportExportUpdater::new(next_file));
+					self.sub_finders.push(ImportExportUpdater::new(next_file.path()));
 				}
 			}
 		}
 		if self.is_mod_file {
 			for file in self.file.parent_dir()?.scanner().include_files().filter(|file| file.name() != "mod.rs" && file.name() != "lib.rs" && file.extension() == Some("rs")) {
 				if self.sub_finders.iter().find(|sub_finder| sub_finder.file == file).is_none() {
-					self.sub_finders.push(ImportExportUpdater::new(file));
+					self.sub_finders.push(ImportExportUpdater::new(file.path()));
 				}
 			}
 			for file in self.file.parent_dir()?.list_dirs().into_iter().map(|dir| dir + "/mod.rs").filter(|file| file.exists()) {
 				if self.sub_finders.iter().find(|sub_finder| sub_finder.file == file).is_none() {
-					self.sub_finders.push(ImportExportUpdater::new(file));
+					self.sub_finders.push(ImportExportUpdater::new(file.path()));
 				}
 			}
 		}
@@ -145,6 +107,14 @@ impl ImportExportUpdater {
 		[
 			self.exports.iter().collect::<Vec<&(PubType, Vec<Export>)>>(),
 			self.sub_finders.iter().map(|finder| finder.recursive_exports()).flatten().collect::<Vec<&(PubType, Vec<Export>)>>()
+		].into_iter().flatten().collect()
+	}
+
+	/// Get all imports of this finder and all sub-finders.
+	fn _recursive_imports(&self) -> Vec<&Import> {
+		[
+			self.imports.iter().collect::<Vec<&Import>>(),
+			self.sub_finders.iter().map(|finder| finder._recursive_imports()).flatten().collect::<Vec<&Import>>()
 		].into_iter().flatten().collect()
 	}
 
