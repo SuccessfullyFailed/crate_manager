@@ -1,7 +1,6 @@
+use crate::{ MODULE_IMPORT_TAG, PARSER_AUTO_EXPORTS_TRIGGER_TAG, PARSER_EXPORT_TAG, PARSER_IDENTIFIER_TAG, PARSER_PUB_TYPE_TAG, PARSER_TYPE_TAG, imports_and_exports::{ imports_exports_parser, AUTO_EXPORTS_TAG } };
 use std::error::Error;
 use file_ref::FileRef;
-
-use crate::{ imports_and_exports::{imports_exports_parser, AUTO_EXPORTS_TAG}, MODULE_IMPORT_TAG, PARSER_AUTO_EXPORTS_TRIGGER_TAG, PARSER_EXPORT_TAG, PARSER_IDENTIFIER_TAG, PARSER_PUB_TYPE_TAG, PARSER_TYPE_TAG};
 
 
 
@@ -44,22 +43,19 @@ struct Export {
 
 
 
-pub struct ExportsFinder {
+pub struct ImportExportUpdater {
 	file:FileRef,
 	is_mod_file:bool,
 	parsed:bool,
 	imports:Vec<Import>,
 	exports:[(PubType, Vec<Export>); 3],
-	sub_finders:Vec<ExportsFinder>
+	sub_finders:Vec<ImportExportUpdater>
 }
-
-
-
-impl ExportsFinder {
+impl ImportExportUpdater {
 
 	/// Create a new exports finder.
-	pub fn new(file:FileRef) -> ExportsFinder {
-		ExportsFinder {
+	pub fn new(file:FileRef) -> ImportExportUpdater {
+		ImportExportUpdater {
 			file: file.clone().absolute(),
 			is_mod_file: file.name() == "lib.rs" || file.name() == "mod.rs",
 			parsed: false,
@@ -70,7 +66,7 @@ impl ExportsFinder {
 	}
 
 	/// Find all imports and exports for this file.
-	pub fn parse(&mut self) -> Result<(), Box<dyn Error>> {
+	pub fn generate(&mut self) -> Result<(), Box<dyn Error>> {
 
 		// If already parsed, don't parse again.
 		if self.parsed {
@@ -115,24 +111,24 @@ impl ExportsFinder {
 			let next_file_refix:FileRef = self.file.parent_dir()? + "/" + &import.identifier;
 			for next_file in [next_file_refix.clone() + ".rs", next_file_refix.clone() + "/mod.rs"] {
 				if next_file.exists() {
-					self.sub_finders.push(ExportsFinder::new(next_file));
+					self.sub_finders.push(ImportExportUpdater::new(next_file));
 				}
 			}
 		}
 		if self.is_mod_file {
 			for file in self.file.parent_dir()?.scanner().include_files().filter(|file| file.name() != "mod.rs" && file.name() != "lib.rs" && file.extension() == Some("rs")) {
 				if self.sub_finders.iter().find(|sub_finder| sub_finder.file == file).is_none() {
-					self.sub_finders.push(ExportsFinder::new(file));
+					self.sub_finders.push(ImportExportUpdater::new(file));
 				}
 			}
 			for file in self.file.parent_dir()?.list_dirs().into_iter().map(|dir| dir + "/mod.rs").filter(|file| file.exists()) {
 				if self.sub_finders.iter().find(|sub_finder| sub_finder.file == file).is_none() {
-					self.sub_finders.push(ExportsFinder::new(file));
+					self.sub_finders.push(ImportExportUpdater::new(file));
 				}
 			}
 		}
 		for sub_finder in &mut self.sub_finders {
-			sub_finder.parse()?;
+			sub_finder.generate()?;
 		}
 
 		// Handle auto-exports if tag present.
